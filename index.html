@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="A squishy simulator where every toy is a freshly made Filipino merienda: siopao, puto, leche flan, palitaw and pandesal.">
+<meta name="theme-color" content="#0C0B0A">
+<style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Squishy Merienda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Lobster&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: the merienda fills the whole screen; a jeepney signboard name plate and the action bar float at the bottom;
+   the Merienda drawer pulls from the left (top on phones) and the Settings drawer from the right (bottom on phones). */
+:root{
+  --board:#0C0B0A;        /* jeepney signboard black */
+  --board-2:#171411;      /* drawer sheet, a step up from the board */
+  --chrome:#D6DADE;       /* stainless trim */
+  --chrome-lo:#737A81;
+  --cream:#FFF6E4;        /* painted letter keyline, body text */
+  --dim:#B8AC99;          /* secondary text on the board */
+  --rule:#2E2924;
+  --yellow:#FFC72C;       /* jeepney paint */
+  --red:#E2231A;
+  --blue:#2F6FD6;
+  --green:#22A05F;
+  --table:#24140A;        /* narra table behind the food while it loads */
+  --scrim:rgba(8,6,4,.55);
+  --sign:"Bungee","Arial Black",Impact,system-ui,sans-serif;
+  --script:"Lobster","Brush Script MT",cursive;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--table);color:var(--cream);font-family:var(--body);font-size:15px;line-height:1.45;overflow:hidden;-webkit-font-smoothing:antialiased;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,.tab:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+/* ---------- The merienda: full bleed ---------- */
+#lab{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:var(--table)}
+
+/* ---------- Bottom stack: name plate + action bar ---------- */
+.stack{position:fixed;left:0;right:0;z-index:10;display:flex;flex-direction:column;align-items:center;gap:14px;pointer-events:none;
+  bottom:calc(var(--stack-bottom,28px) + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.stack > *{pointer-events:auto}
+
+/* the merienda's name, painted straight onto the scene in jeepney lettering: cream keyline, deep drop, soft shadow so it reads on any food */
+.plate{--paint:var(--yellow);--deep:#9A5A00;position:relative;margin:0;max-width:100%;align-self:flex-start;text-align:left}
+.plate-name{display:block;font-family:var(--sign);font-weight:400;font-size:clamp(32px,8.6vw,60px);line-height:1.02;letter-spacing:.01em;color:var(--paint);white-space:nowrap;
+  -webkit-text-stroke:1.5px var(--cream);paint-order:stroke fill;
+  text-shadow:1px 1px 0 var(--deep),2px 2px 0 var(--deep),3px 3px 0 var(--deep),4px 4px 0 var(--deep),5px 5px 0 #000,0 8px 22px rgba(0,0,0,.6);
+  transition:opacity .25s ease,transform .25s ease}
+/* wide screens: the name sits in the bottom-left corner, level with the action bar */
+@media (min-width:1180px){.plate{position:absolute;left:max(32px,env(safe-area-inset-left,0px));bottom:0}}
+.plate.swap .plate-name{opacity:0;transform:translateY(4px)}
+
+/* action bar */
+.tools{display:flex;gap:2px;padding:4px;max-width:100%;border-radius:999px;background:var(--board);box-shadow:0 0 0 2px var(--chrome-lo),0 10px 22px rgba(0,0,0,.4)}
+.tools[hidden]{display:none}
+.tools button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:0;flex:1 1 auto;height:40px;padding:0 14px;border:0;border-radius:999px;background:none;color:var(--dim);font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap;transition:background .15s ease,color .15s ease}
+.tools button:hover{color:var(--cream)}
+.tools button svg{width:17px;height:17px;flex-shrink:0}
+.tools button[aria-checked="true"]{background:var(--yellow);color:var(--board)}
+
+/* ---------- Drawers ---------- */
+.scrim{position:fixed;inset:0;z-index:25;background:var(--scrim);opacity:0;pointer-events:none;transition:opacity .3s ease}
+.scrim.on{pointer-events:auto}
+.drawer{--p:0;--size:320px;position:fixed;z-index:30;display:flex;pointer-events:none;transition:transform .34s cubic-bezier(.2,.8,.2,1)}
+.drawer.dragging{transition:none}
+.drawer > *{pointer-events:auto}
+.sheet{background:var(--board-2);color:var(--cream);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.tab{flex-shrink:0;display:grid;place-items:center;border:0;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;background:var(--board);
+  font-family:var(--sign);font-weight:400;font-size:19px;line-height:1;color:var(--paint,var(--yellow));box-shadow:0 0 0 2px var(--chrome-lo),0 8px 20px rgba(0,0,0,.4)}
+.tab:active{cursor:grabbing}
+.tab .grip{display:block;border-radius:2px;background:var(--chrome-lo)}
+#dMenu{--paint:var(--yellow)}
+#dSet{--paint:#6FD3FF}
+
+/* sides: left / right on wide screens */
+.drawer[data-side="left"],.drawer[data-side="right"]{top:0;bottom:0;align-items:center;--sheet-w:min(340px,82vw)}
+.drawer[data-side="left"]{left:0;flex-direction:row;transform:translateX(calc((var(--p) - 1) * var(--size)))}
+.drawer[data-side="right"]{right:0;flex-direction:row-reverse;transform:translateX(calc((1 - var(--p)) * var(--size)))}
+.drawer[data-side="left"] .sheet,.drawer[data-side="right"] .sheet{width:var(--sheet-w);height:100%;padding:calc(28px + env(safe-area-inset-top,0px)) 24px calc(28px + env(safe-area-inset-bottom,0px))}
+.drawer[data-side="left"] .sheet{padding-left:max(24px,env(safe-area-inset-left,0px));box-shadow:inset -2px 0 0 var(--chrome-lo)}
+.drawer[data-side="right"] .sheet{padding-right:max(24px,env(safe-area-inset-right,0px));box-shadow:inset 2px 0 0 var(--chrome-lo)}
+.drawer[data-side="left"] .tab,.drawer[data-side="right"] .tab{width:48px;height:min(58vh,480px);gap:10px;grid-template-rows:1fr auto;padding:22px 0 16px}
+.drawer[data-side="left"] .tab{border-radius:0 12px 12px 0}
+.drawer[data-side="right"] .tab{border-radius:12px 0 0 12px}
+.drawer[data-side="left"] .tab-label,.drawer[data-side="right"] .tab-label{writing-mode:vertical-rl;text-orientation:upright;letter-spacing:.22em}
+.drawer[data-side="left"] .grip,.drawer[data-side="right"] .grip{width:4px;height:28px}
+
+/* sides: top / bottom on phones */
+.drawer[data-side="top"],.drawer[data-side="bottom"]{left:0;right:0;align-items:center}
+.drawer[data-side="top"]{top:0;flex-direction:column;transform:translateY(calc((var(--p) - 1) * var(--size)))}
+.drawer[data-side="bottom"]{bottom:0;flex-direction:column-reverse;transform:translateY(calc((1 - var(--p)) * var(--size)))}
+.drawer[data-side="top"] .sheet,.drawer[data-side="bottom"] .sheet{width:100%;max-height:min(72vh,620px);padding:20px max(20px,env(safe-area-inset-right,0px)) 20px max(20px,env(safe-area-inset-left,0px))}
+.drawer[data-side="top"] .sheet{padding-top:calc(20px + env(safe-area-inset-top,0px));box-shadow:inset 0 -2px 0 var(--chrome-lo)}
+.drawer[data-side="bottom"] .sheet{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));box-shadow:inset 0 2px 0 var(--chrome-lo)}
+.drawer[data-side="top"] .tab,.drawer[data-side="bottom"] .tab{position:relative;width:calc(100% - 32px);max-width:560px;height:46px}
+.drawer[data-side="top"] .tab{border-radius:0 0 14px 14px}
+.drawer[data-side="bottom"] .tab{border-radius:14px 14px 0 0;margin-bottom:0}
+.drawer[data-side="top"] .tab-label,.drawer[data-side="bottom"] .tab-label{letter-spacing:.32em;margin-right:-.32em}
+.drawer[data-side="top"] .grip,.drawer[data-side="bottom"] .grip{position:absolute;right:18px;top:50%;width:26px;height:4px;margin-top:-2px}
+/* closed: the tab is the only part on screen; tuck its outer edge under the safe area */
+.drawer[data-side="top"] .tab{margin-top:0}
+.drawer[data-side="bottom"]{padding-bottom:0}
+
+.sheet-head{display:grid;gap:4px;margin-bottom:18px}
+.eyebrow{margin:0;font-family:var(--sign);font-size:11px;letter-spacing:.18em;color:var(--paint)}
+.sheet h2{margin:0;font-family:var(--sign);font-weight:400;font-size:22px;line-height:1.1;text-wrap:balance}
+
+/* menu list */
+.menu{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.drawer[data-side="top"] .menu{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.menu button{width:100%;display:grid;grid-template-columns:64px minmax(0,1fr);align-items:center;gap:14px;padding:8px 12px 8px 8px;border:1px solid var(--rule);border-radius:14px;background:var(--board);cursor:pointer;text-align:left;transition:border-color .15s ease,transform .15s ease}
+.menu button:hover{border-color:var(--chrome-lo);transform:translateX(2px)}
+.menu img{width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;box-shadow:0 0 0 2px var(--rule)}
+.menu .m-name{font-family:var(--sign);font-size:17px;line-height:1.05;color:var(--paint);-webkit-text-stroke:.6px var(--cream);paint-order:stroke fill;text-shadow:2px 2px 0 var(--deep)}
+.menu button[aria-current="true"]{border-color:var(--yellow);box-shadow:inset 0 0 0 1px var(--yellow)}
+.menu button[aria-current="true"] img{box-shadow:0 0 0 3px var(--yellow)}
+.drawer[data-side="top"] .menu button{grid-template-columns:minmax(0,1fr);justify-items:center;text-align:center;gap:8px;padding:10px 3px}
+.drawer[data-side="top"] .menu button:hover{transform:translateY(2px)}
+.drawer[data-side="top"] .menu img{width:min(56px,100%);height:auto;aspect-ratio:1}
+.drawer[data-side="top"] .menu .m-name{display:block;width:100%;overflow:hidden;font-size:var(--m-size,11.5px);line-height:1.15;text-shadow:1px 1px 0 var(--deep)}
+
+/* settings */
+.group{display:grid;gap:2px;padding-block:14px;border-top:1px dashed var(--rule)}
+.sheet-head + .group{border-top:0;padding-top:0}
+.field{display:grid;gap:4px;padding-block:8px}
+.field-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.field label{font-weight:700}
+.field output{font-family:var(--sign);font-size:13px;color:var(--paint);font-variant-numeric:tabular-nums}
+.field input[type=range]{width:100%;height:28px;margin:0;accent-color:var(--yellow)}
+.field p{margin:0;font-size:12.5px;color:var(--dim)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:6px;font-weight:700}
+.seg{display:inline-flex;padding:3px;gap:2px;border-radius:999px;background:var(--board);box-shadow:0 0 0 1px var(--rule)}
+.seg button{height:34px;padding:0 14px;border:0;border-radius:999px;background:none;color:var(--dim);font-weight:700;font-size:13px;cursor:pointer}
+.seg button[aria-checked="true"]{background:var(--cream);color:var(--board)}
+.switch{position:relative;width:48px;height:28px;flex-shrink:0;border:0;border-radius:999px;background:var(--rule);cursor:pointer;transition:background .2s ease}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--cream);transition:transform .2s ease}
+.switch[aria-checked="true"]{background:var(--green)}
+.switch[aria-checked="true"]::after{transform:translateX(20px)}
+.ghost{height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--chrome-lo);background:none;color:var(--cream);font-weight:700;cursor:pointer}
+.ghost:hover{border-color:var(--cream)}
+.ghost.full{width:100%;height:46px;margin-top:6px}
+/* keyboard legend: keycaps with what each does; hidden on touch-only screens */
+.legend{margin:8px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px}
+.legend li{display:flex;align-items:center;gap:8px;min-width:0;font-size:13px;color:var(--dim)}
+kbd{display:inline-grid;place-items:center;min-width:28px;height:26px;padding:0 7px;flex-shrink:0;border-radius:6px;border:1px solid var(--chrome-lo);border-bottom-width:3px;background:var(--board);color:var(--cream);font-family:var(--sign);font-size:12px;line-height:1}
+@media (hover:none) and (pointer:coarse){.legend-wrap{display:none}}
+.legend-title{margin:10px 0 0;font-weight:700}
+
+/* ---------- Loading: a bilao spinning while the merienda is prepared ---------- */
+.loader{position:fixed;inset:0;z-index:20;display:grid;place-content:center;justify-items:center;gap:16px;padding:24px;text-align:center;background:rgba(20,12,7,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:0;visibility:hidden;transition:opacity .25s ease,visibility 0s linear .25s}
+.loader.on{opacity:1;visibility:visible;transition:opacity .2s ease,visibility 0s}
+.bilao{width:72px;height:72px;border-radius:50%;flex-shrink:0;
+  background:
+    radial-gradient(circle,rgba(255,236,190,.35) 0 18%,transparent 19%),
+    repeating-radial-gradient(circle,transparent 0 5px,rgba(70,40,12,.28) 5px 6px),
+    repeating-conic-gradient(#D6A867 0 7.5deg,#B07F42 7.5deg 15deg);
+  box-shadow:inset 0 0 0 5px #7A4E22,inset 0 0 0 7px #C58F4C,0 8px 18px rgba(0,0,0,.45);
+  animation:spin 1.6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.say{margin:0;font-family:var(--sign);font-size:clamp(16px,4.2vw,20px);line-height:1.2;color:var(--yellow);text-wrap:balance;min-height:1.2em}
+.say{transition:opacity .2s ease}
+.fade{opacity:0}
+
+/* ---------- Title card ---------- */
+.title{position:fixed;inset:0;z-index:60;display:grid;place-content:center;justify-items:center;gap:28px;padding:24px;text-align:center;
+  background:
+    repeating-conic-gradient(from -90deg at 50% 46%,rgba(255,199,44,.07) 0 6deg,transparent 6deg 15deg),
+    radial-gradient(70% 60% at 50% 46%,#2A1A0E,var(--board));
+  transition:opacity .6s ease,visibility 0s linear .6s}
+.title.gone{opacity:0;visibility:hidden;pointer-events:none}
+.logo{margin:0;display:grid;justify-items:center;line-height:1}
+.logo-script{font-family:var(--script);font-weight:400;font-size:clamp(46px,12vw,96px);color:var(--cream);transform:rotate(-5deg);margin-bottom:-.12em;position:relative;z-index:1;
+  -webkit-text-stroke:2px var(--red);paint-order:stroke fill;text-shadow:3px 3px 0 var(--red),6px 6px 0 #000}
+.logo-sign{font-family:var(--sign);font-weight:400;font-size:clamp(38px,11vw,98px);letter-spacing:.02em;display:flex}
+.logo-sign span{-webkit-text-stroke:2px var(--cream);paint-order:stroke fill;text-shadow:3px 3px 0 #000,6px 6px 0 rgba(0,0,0,.6)}
+.logo-sign span:nth-child(4n+1){color:var(--red)}
+.logo-sign span:nth-child(4n+2){color:var(--yellow)}
+.logo-sign span:nth-child(4n+3){color:var(--blue)}
+.logo-sign span:nth-child(4n+4){color:var(--green)}
+.title .loading{display:grid;justify-items:center;gap:14px}
+.title .bilao{width:56px;height:56px}
+.logo{animation:rise .7s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(14px) scale(.97)}}
+
+@media (max-width:560px){
+  .tools button{padding:0 10px;font-size:13px;height:38px}
+}
+@media (max-width:400px){
+  .tools button svg{display:none}
+  .tools button{padding:0 9px}
+}
+@media (prefers-reduced-motion: reduce){
+  .drawer,.scrim,.loader,.title,.plate-name,.menu button{transition:none!important}
+  .bilao{animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.55}}
+  .logo{animation:none}
+}
+</style>
+
+</head>
+<body>
+<h1 class="sr">Squishy Merienda</h1>
+
+<iframe id="lab" title="Merienda" allow="autoplay"></iframe>
+
+<div class="stack" id="stack">
+  <p class="plate" id="plate"><span class="plate-name" id="plateName">Siopao</span></p>
+  <div class="tools" id="tools" role="radiogroup" aria-label="What to do" hidden></div>
+</div>
+
+<div class="loader" id="loader" role="status" aria-live="polite">
+  <div class="bilao" aria-hidden="true"></div>
+  <p class="say" id="say"></p>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<section class="drawer" id="dMenu" data-side="left">
+  <div class="sheet" id="menuSheet" role="dialog" aria-label="Merienda">
+    <div class="sheet-head">
+      <p class="eyebrow">Menu</p>
+    </div>
+    <ul class="menu" id="menu"></ul>
+  </div>
+  <button class="tab" id="menuTab" type="button" aria-controls="menuSheet" aria-expanded="false"><span class="tab-label">Merienda</span><span class="grip" aria-hidden="true"></span></button>
+</section>
+
+<section class="drawer" id="dSet" data-side="right">
+  <div class="sheet" id="setSheet" role="dialog" aria-label="Settings">
+    <div class="sheet-head">
+      <p class="eyebrow">Settings</p>
+    </div>
+    <div class="group">
+      <div class="row"><span id="camLabel">Camera</span>
+        <div class="seg" id="viewSeg" role="radiogroup" aria-labelledby="camLabel">
+          <button type="button" role="radio" data-view="top" aria-checked="false">Top</button>
+          <button type="button" role="radio" data-view="tilt" aria-checked="true">Tilted</button>
+        </div>
+      </div>
+      <div class="row"><span id="soundLabel">Sound</span><button class="switch" id="sound" type="button" role="switch" aria-checked="true" aria-labelledby="soundLabel"></button></div>
+      <div class="legend-wrap">
+        <p class="legend-title" id="keysLabel">Keyboard</p>
+        <ul class="legend" id="legend" aria-labelledby="keysLabel"></ul>
+      </div>
+    </div>
+    <div class="group" aria-label="Recipe">
+      <div id="fields"></div>
+      <button class="ghost full" id="reset" type="button">Reset</button>
+    </div>
+  </div>
+  <button class="tab" id="setTab" type="button" aria-controls="setSheet" aria-expanded="false"><span class="tab-label">Settings</span><span class="grip" aria-hidden="true"></span></button>
+</section>
+
+<div class="title" id="title" aria-hidden="true">
+  <p class="logo"><span class="logo-script">Squishy</span><span class="logo-sign" id="logoSign"></span></p>
+  <div class="loading">
+    <div class="bilao"></div>
+    <p class="say" id="tSay"></p>
+  </div>
+</div>
+
+<p class="sr" id="announce" aria-live="polite"></p>
+
+<script>
+(() => {
+/* ---------- The five merienda: signboard paint, and what the kitchen is doing while each one loads ---------- */
+const MERIENDA = [
+  { id: 'siopao',     name: 'Siopao',     paint: '#FFC72C', deep: '#A35F00', say: 'Steaming the siopao…' },
+  { id: 'puto',       name: 'Puto',       paint: '#FF6FB1', deep: '#97154F', say: 'Topping the puto with cheese…' },
+  { id: 'leche-flan', name: 'Leche Flan', paint: '#FF9A2E', deep: '#8C3A00', say: 'Pouring the caramel…' },
+  { id: 'palitaw',    name: 'Palitaw',    paint: '#4BDB8A', deep: '#0E6435', say: 'Rolling it in grated coconut…' },
+  { id: 'pandesal',   name: 'Pandesal',   paint: '#6FD3FF', deep: '#0F5A8C', say: 'Taking it out of the oven…' },
+];
+const FILLER = ['Just a moment…', 'Careful, it’s still hot…', 'Setting the table…'];
+const $ = id => document.getElementById(id);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+const wideMQ = matchMedia('(min-width: 820px)');
+const wait = t => new Promise(r => setTimeout(r, t));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lab = $('lab');
+const send = d => { try { lab.contentWindow.postMessage(d, '*'); } catch (e) {} };
+
+/* ---------- Title card lettering: one jeepney colour per letter ---------- */
+$('logoSign').innerHTML = [...'MERIENDA'].map(c => `<span>${c}</span>`).join('');
+
+/* ---------- Loading labels ---------- */
+let sayTimer = null;
+function startSaying(sayEl, m) {
+  const lines = [m.say, ...FILLER]; let i = 0;
+  const show = () => { sayEl.textContent = lines[i % lines.length]; sayEl.classList.remove('fade'); };
+  clearInterval(sayTimer); show();
+  sayTimer = setInterval(() => { sayEl.classList.add('fade'); setTimeout(() => { i++; show(); }, 200); }, 1700);
+}
+function stopSaying() { clearInterval(sayTimer); sayTimer = null; }
+
+/* ---------- Menu ---------- */
+const menuBtns = MERIENDA.map(m => {
+  const li = document.createElement('li'), b = document.createElement('button');
+  b.type = 'button'; b.style.setProperty('--paint', m.paint); b.style.setProperty('--deep', m.deep);
+  b.innerHTML = `<img src="labs/thumbs/${m.id}.jpg" alt="" width="64" height="64"><span class="m-name">${m.name}</span>`;
+  b.addEventListener('click', () => { open(m.id); drawers.menu.set(false); });
+  li.append(b); $('menu').append(li); return b;
+});
+
+/* ---------- Drawers: tap, click or drag the tab ---------- */
+function makeDrawer(key, el, sheet, tab) {
+  const d = { key, el, sheet, tab, p: 0, open: false };
+  const side = () => el.dataset.side;
+  const horiz = () => side() === 'left' || side() === 'right';
+  const size = () => horiz() ? sheet.offsetWidth : sheet.offsetHeight;
+  const sign = () => ({ left: 1, top: 1, right: -1, bottom: -1 })[side()];
+  d.apply = () => {
+    el.style.setProperty('--size', size() + 'px'); el.style.setProperty('--p', d.p);
+    sheet.inert = d.p === 0; syncScrim();
+  };
+  d.set = (on, focus) => {
+    if (on) Object.values(drawers).forEach(o => { if (o !== d && o.open) o.set(false); });
+    d.open = on; d.p = on ? 1 : 0; el.classList.remove('dragging'); d.apply();
+    tab.setAttribute('aria-expanded', String(on));
+    if (on && focus) setTimeout(() => { const f = sheet.querySelector('[aria-current="true"], input, button'); f && f.focus({ preventScroll: true }); }, 60);
+  };
+  let drag = null, suppress = false;
+  tab.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, p0: d.p, moved: false, t: performance.now(), v: 0, last: 0 };
+    tab.setPointerCapture(e.pointerId);
+  });
+  tab.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const delta = (horiz() ? e.clientX - drag.x : e.clientY - drag.y) * sign();
+    if (!drag.moved && Math.abs(delta) < 6) return;
+    if (!drag.moved) { drag.moved = true; el.classList.add('dragging'); if (drag.p0 === 0) Object.values(drawers).forEach(o => { if (o !== d && o.open) o.set(false); }); }
+    const now = performance.now(), s = Math.max(1, size());
+    drag.v = (delta - drag.last) / Math.max(1, now - drag.t); drag.last = delta; drag.t = now;
+    d.p = clamp(drag.p0 + delta / s, 0, 1); el.style.setProperty('--p', d.p); sheet.inert = false; syncScrim();
+  });
+  const end = e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const g = drag; drag = null;
+    if (!g.moved) return;          // a plain tap: the click handler toggles
+    suppress = true;
+    d.set(g.v > 0.35 ? true : g.v < -0.35 ? false : d.p > 0.5);
+  };
+  tab.addEventListener('pointerup', end);
+  tab.addEventListener('pointercancel', end);
+  tab.addEventListener('click', e => { if (suppress) { suppress = false; return; } d.set(!d.open, e.detail === 0); });
+  return d;
+}
+const drawers = {
+  menu: makeDrawer('menu', $('dMenu'), $('menuSheet'), $('menuTab')),
+  set: makeDrawer('set', $('dSet'), $('setSheet'), $('setTab')),
+};
+// a sheet grows when its merienda's recipe arrives, so re-measure how far it has to slide
+if (window.ResizeObserver) { const ro = new ResizeObserver(() => Object.values(drawers).forEach(d => d.apply())); Object.values(drawers).forEach(d => ro.observe(d.sheet)); }
+const scrim = $('scrim');
+function syncScrim() { const p = Math.max(drawers?.menu?.p || 0, drawers?.set?.p || 0); scrim.style.opacity = p; scrim.classList.toggle('on', p > 0); }
+scrim.addEventListener('click', () => Object.values(drawers).forEach(d => d.open && d.set(false)));
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const o = Object.values(drawers).find(d => d.open); if (!o) return;
+  o.set(false); o.tab.focus();
+});
+
+/* ---------- Layout: desktop drawers sit left/right, phones top/bottom; tell the merienda how much room it has ---------- */
+const stack = $('stack');
+function arrange() {
+  const wide = wideMQ.matches;
+  $('dMenu').dataset.side = wide ? 'left' : 'top';
+  $('dSet').dataset.side = wide ? 'right' : 'bottom';
+  // phones keep the stack above the Settings tab
+  stack.style.setProperty('--stack-bottom', wide ? '28px' : ($('setTab').offsetHeight + 16) + 'px');
+  fitMenu();
+  Object.values(drawers).forEach(d => d.apply());
+  requestAnimationFrame(sendInsets);
+}
+// phones: one font size for every name in the menu row, the largest at which none of them spills out of its tile
+function fitMenu() {
+  const menu = $('menu'), names = [...menu.querySelectorAll('.m-name')];
+  menu.style.removeProperty('--m-size');
+  if ($('dMenu').dataset.side !== 'top') return;
+  let size = 11.5;
+  const spills = () => names.some(n => n.scrollWidth > n.clientWidth + 0.5);
+  while (size > 7 && spills()) { size -= 0.5; menu.style.setProperty('--m-size', size + 'px'); }
+}
+function sendInsets() {
+  const H = innerHeight, plate = $('plate').getBoundingClientRect();
+  let t, hint;
+  if (wideMQ.matches) { t = 26; hint = 24; }
+  else { const tr = $('menuTab').getBoundingClientRect(); t = tr.bottom + 10; hint = tr.bottom + 12; }
+  // the food reaches down to the name and the action bar, whichever sits higher
+  const bar = $('tools').getBoundingClientRect(), top = bar.height ? Math.min(plate.top, bar.top) : plate.top;
+  const b = H - top - (wideMQ.matches ? 18 : 6);
+  send({ sm: 'insets', t: Math.round(t), b: Math.round(b), hint: Math.round(hint) });
+}
+wideMQ.addEventListener ? wideMQ.addEventListener('change', () => { Object.values(drawers).forEach(d => d.open && d.set(false)); arrange(); }) : wideMQ.addListener(arrange);
+addEventListener('resize', () => { clearTimeout(arrange.t); arrange.t = setTimeout(arrange, 80); });
+
+/* ---------- Actions (drawn here, performed by the merienda) ---------- */
+let tools = [], tool = null;
+const toolsEl = $('tools');
+function renderTools(list) {
+  if (JSON.stringify(list.map(t => t.id)) !== JSON.stringify(tools.map(t => t.id)) || !toolsEl.children.length) {
+    toolsEl.innerHTML = '';
+    list.forEach((t, j) => {
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio'); b.dataset.id = t.id; b.title = `${t.label} (${j + 1})`;
+      b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${t.icon}</svg><span>${t.label}</span>`;
+      b.addEventListener('click', () => setTool(t.id, true));
+      toolsEl.append(b);
+    });
+  }
+  tools = list; toolsEl.hidden = !list.length;
+  $('legend').innerHTML = list.map((t, j) => `<li><kbd>${j + 1}</kbd>${t.label}</li>`).join('')
+    + '<li><kbd>V</kbd>Camera</li><li><kbd>Esc</kbd>Close drawer</li>';
+}
+function setTool(id, tell) {
+  tool = id;
+  [...toolsEl.children].forEach(b => { const on = b.dataset.id === id; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+  if (tell) send({ sm: 'tool', id });
+}
+toolsEl.addEventListener('keydown', e => {
+  const k = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]; if (!k || !tools.length) return;
+  e.preventDefault(); const j = (tools.findIndex(t => t.id === tool) + k + tools.length) % tools.length;
+  setTool(tools[j].id, true); toolsEl.children[j].focus();
+});
+
+/* ---------- Settings: recipe sliders, camera, sound ---------- */
+let fields = [], recipe = {};
+const saved = (() => { try { return JSON.parse(store.get('sm-recipes', '{}')) || {}; } catch (e) { return {}; } })();
+const fmt = { soft: v => `${v} / 10`, rise: v => `${(+v).toFixed(1)} s`, jig: v => `${v} / 10` };
+function renderFields(list) {
+  fields = list; const host = $('fields'); host.innerHTML = '';
+  list.forEach(f => {
+    const w = document.createElement('div'); w.className = 'field';
+    w.innerHTML = `<div class="field-top"><label for="f-${f.k}">${f.label}</label><output id="f-${f.k}-out" for="f-${f.k}"></output></div>
+      <input type="range" id="f-${f.k}" min="${f.min}" max="${f.max}" step="${f.step}"><p>${f.note}</p>`;
+    const inp = w.querySelector('input');
+    inp.addEventListener('input', () => { recipe[f.k] = +inp.value; showField(f.k); send({ sm: 'recipe', k: f.k, v: +inp.value }); saveRecipe(); });
+    host.append(w);
+  });
+}
+function showField(k) { const i = $('f-' + k); if (!i) return; i.value = recipe[k]; $('f-' + k + '-out').textContent = (fmt[k] || String)(recipe[k]); }
+function saveRecipe() { saved[current] = { ...recipe }; store.set('sm-recipes', JSON.stringify(saved)); }
+$('reset').addEventListener('click', () => { delete saved[current]; store.set('sm-recipes', JSON.stringify(saved)); send({ sm: 'reset' }); });
+
+let view = 'tilt';
+const viewBtns = [...document.querySelectorAll('#viewSeg button')];
+function setView(v, tell) { view = v; viewBtns.forEach(b => { const on = b.dataset.view === v; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; }); if (tell) send({ sm: 'view', v }); }
+viewBtns.forEach(b => b.addEventListener('click', () => setView(b.dataset.view, true)));
+$('viewSeg').addEventListener('keydown', e => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) { e.preventDefault(); setView(view === 'top' ? 'tilt' : 'top', true); viewBtns.find(b => b.dataset.view === view).focus(); } });
+
+let muted = store.get('sm-muted', '0') === '1';
+const soundBtn = $('sound');
+function renderSound() { soundBtn.setAttribute('aria-checked', String(!muted)); }
+soundBtn.addEventListener('click', () => { muted = !muted; store.set('sm-muted', muted ? '1' : '0'); renderSound(); send({ sm: 'mute', muted }); });
+renderSound();
+
+// keys work while focus is on the shell too (the merienda handles them itself when it has focus)
+document.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input, .sheet')) return;
+  if (e.key === 'v' || e.key === 'V') { setView(view === 'top' ? 'tilt' : 'top', true); return; }
+  const n = +e.key; if (n >= 1 && n <= tools.length) setTool(tools[n - 1].id, true);
+});
+
+/* ---------- Messages from the merienda ---------- */
+let ready = false;
+addEventListener('message', e => {
+  if (e.source !== lab.contentWindow || !e.data) return;
+  const d = e.data;
+  if (d.sm === 'ready') {
+    ready = true;
+    renderTools(d.tools || []); setTool(d.tool);
+    setView(d.view === 'top' ? 'top' : 'tilt');
+    renderFields(d.fields || []); recipe = { ...(d.recipe || {}) };
+    // bring back this visitor's own recipe for this merienda
+    const mine = saved[current];
+    if (mine) for (const k in mine) if (k in recipe) { recipe[k] = mine[k]; send({ sm: 'recipe', k, v: mine[k] }); }
+    fields.forEach(f => showField(f.k));
+    send({ sm: 'mute', muted }); sendInsets();
+  }
+  else if (d.sm === 'tool') setTool(d.id);
+  else if (d.sm === 'view') setView(d.v);
+  else if (d.sm === 'recipe' && d.recipe) { recipe = { ...d.recipe }; fields.forEach(f => showField(f.k)); }
+});
+lab.addEventListener('load', () => { send({ sm: 'mute', muted }); });
+
+/* ---------- Switching merienda: spinner up, swap, spinner down ---------- */
+let current = null, token = 0;
+const loader = $('loader'), title = $('title');
+let titleUp = true;
+async function open(id) {
+  const m = MERIENDA.find(x => x.id === id) || MERIENDA[0];
+  if (m.id === current) return;
+  current = m.id; const my = ++token;
+  menuBtns.forEach((b, i) => b.setAttribute('aria-current', String(MERIENDA[i].id === m.id)));
+  store.set('sm-current', m.id);
+  if (location.hash.slice(1) !== m.id) history.replaceState(null, '', '#' + m.id);
+
+  if (titleUp) startSaying($('tSay'), m);
+  else { loader.classList.add('on'); startSaying($('say'), m); }
+  const plate = $('plate'); plate.classList.add('swap');
+  const t0 = performance.now();
+  await wait(titleUp ? 0 : 200); if (my !== token) return;
+  plate.style.setProperty('--paint', m.paint); plate.style.setProperty('--deep', m.deep);
+  $('plateName').textContent = m.name; plate.classList.remove('swap');
+  ready = false; lab.title = m.name; lab.src = `labs/${m.id}.html?embed=1`;
+  const start = performance.now();
+  while (!ready && performance.now() - start < 8000) { await wait(50); if (my !== token) return; }
+  // keep the label up long enough to read, and the title card a little longer on the first visit
+  const minShow = titleUp ? 2200 : (reduced.matches ? 300 : 900);
+  await wait(Math.max(0, minShow - (performance.now() - t0))); if (my !== token) return;
+  stopSaying();
+  if (titleUp) { titleUp = false; title.classList.add('gone'); }
+  loader.classList.remove('on');
+  $('announce').textContent = `Now serving: ${m.name}`;
+}
+title.addEventListener('click', () => { if (ready && titleUp) { titleUp = false; stopSaying(); title.classList.add('gone'); } });
+
+/* ---------- Start on the linked, last-played or first merienda ---------- */
+arrange();
+const fromHash = location.hash.slice(1), last = store.get('sm-current', '');
+open(MERIENDA.some(m => m.id === fromHash) ? fromHash : MERIENDA.some(m => m.id === last) ? last : 'siopao');
+addEventListener('hashchange', () => { const h = location.hash.slice(1); if (MERIENDA.some(m => m.id === h)) open(h); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => arrange());
+})();
+</script>
+</body>
+</html>
