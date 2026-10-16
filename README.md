@@ -9,6 +9,7 @@ A squishy simulator where every toy is a freshly made Filipino merienda. Poke, p
 - **Five merienda:** siopao, puto, leche flan, palitaw and pandesal, each with its own texture, setting and feel.
 - **Real squish:** 3D soft-body physics in WebGL. The dough keeps its volume, dents and bulges where you press, and slowly rises back.
 - **Five actions:** poke, press, squeeze, pull and smoosh.
+- **Two-finger stretch:** on a phone, pick Pull and spread two fingers on a merienda to stretch it out.
 - **A recipe for each one:** tweak softness, rise time and jiggle in Settings. Your tweaks are remembered on your device.
 - **Its own sound:** each merienda has a synthesized sound kit, from the siopao's soft puffs to the leche flan's wet plops and the pandesal's crusty crackle.
 - **Works on phones too:** the Merienda and Settings drawers move to the top and bottom on small screens, and Android phones get a little haptic buzz.

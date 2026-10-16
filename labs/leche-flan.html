@@ -261,6 +261,33 @@ const sway = { x: 0, y: 0, vx: 0, vy: 0 }, bounce = { b: 0, v: 0 };
 const contacts = [];
 const squeeze = { S: 0, ax: 1, ay: 0 };
 const pull = { on: false, gu: 0, gv: 0, Fx: 0, Fy: 0, Tx: 0, Ty: 0 };
+/* ---------- Two-finger stretch: a second grab, and the body between the two fingers thins into a neck ---------- */
+const pull2 = { on: false, gu: 0, gv: 0, Fx: 0, Fy: 0, Tx: 0, Ty: 0 };
+const SM2 = {}, SR = { x: 0, y: 0, z: 0 };
+function smStretchPrep(F1x, F1y, F2x, F2y, L) {
+  const f2 = Math.hypot(F2x, F2y);
+  if (!pull2.on && f2 < 1e-4) return null;
+  let dx = pull2.gu - pull.gu, dy = pull2.gv - pull.gv, d = Math.hypot(dx, dy);
+  // fingers that start close together: the stretch runs the way they're moving apart
+  if (d < 0.15) { dx = F2x - F1x; dy = F2y - F1y; const m = Math.hypot(dx, dy); if (m < 1e-5) { dx = 1; dy = 0; } d = Math.max(d, 0.15); const mm = Math.hypot(dx, dy); dx /= mm; dy /= mm; } else { dx /= d; dy /= d; }
+  SM2.ax = dx; SM2.ay = dy; SM2.mx = (pull.gu + pull2.gu) / 2; SM2.my = (pull.gv + pull2.gv) / 2;
+  SM2.half = Math.max(0.28, d / 2); SM2.gu = pull2.gu; SM2.gv = pull2.gv; SM2.Fx = F2x; SM2.Fy = F2y;
+  SM2.k2 = Math.min(1, f2 / L);
+  SM2.s = Math.max(0, (F2x - F1x) * dx + (F2y - F1y) * dy);   // how much further apart the two fingers are now
+  return SM2;
+}
+function smStretchAt(o, X, Y, Z) {
+  const w = Math.exp(-((X - o.gu) ** 2 + (Y - o.gv) ** 2) / (2 * STRETCH.sig));
+  SR.x = o.Fx * w * STRETCH.xy; SR.y = o.Fy * w * STRETCH.xy; SR.z = -Z * STRETCH.z * w * o.k2;
+  if (o.s > 1e-4) {
+    const rx = X - o.mx, ry = Y - o.my, al = rx * o.ax + ry * o.ay, pe = -rx * o.ay + ry * o.ax;
+    const t = Math.tanh(al / o.half), mid = 1 - t * t;         // -1 … 1 along the stretch, 1 at the waist
+    const a = t * o.s * STRETCH.along, n = -pe * Math.min(STRETCH.neckMax, o.s * STRETCH.neck) * mid;
+    SR.x += o.ax * a - o.ay * n; SR.y += o.ay * a + o.ax * n;
+    SR.z -= Z * Math.min(STRETCH.dropMax, o.s * STRETCH.drop) * mid;   // the middle sags as it thins
+  }
+}
+const STRETCH = { sig: 0.12, xy: 0.75, z: 0.22, along: 0.36, neck: 0.6, neckMax: 0.4, drop: 0.5, dropMax: 0.4 };
 let keySqueeze = false;
 
 const KIND = {
@@ -276,11 +303,12 @@ function simStep(dt) {
   squeeze.S += ((sqOn ? 1 : 0) - squeeze.S) * Math.min(1, dt * (sqOn ? 6 : 10));
   const pr = Math.min(1, dt * (pull.on ? 40 : 12));
   pull.Fx += ((pull.on ? pull.Tx : 0) - pull.Fx) * pr; pull.Fy += ((pull.on ? pull.Ty : 0) - pull.Fy) * pr;
+  pull2.Fx += ((pull2.on ? pull2.Tx : 0) - pull2.Fx) * pr; pull2.Fy += ((pull2.on ? pull2.Ty : 0) - pull2.Fy) * pr;
   const live = contacts.filter(c => c.live);
   const relax = 1 - Math.exp(-dt * 3 / T), inR = Math.min(1, dt * 12), eR = Math.min(1, dt * (pull.on ? 30 : 18));
   const beta = reduced ? 0 : 0.3 + jig * 0.07;
   const S = squeeze.S, ax = squeeze.ax, ay = squeeze.ay, sqk = 0.38 + soft * 0.04;
-  const L = 0.25 + soft * 0.05, pf = Math.hypot(pull.Fx, pull.Fy), pullOn = pf > 1e-4;
+  const L = 0.25 + soft * 0.05, pf = Math.hypot(pull.Fx, pull.Fy), pullOn = pf > 1e-4; const S2 = smStretchPrep(pull.Fx, pull.Fy, pull2.Fx, pull2.Fy, L);
   for (let i = 0; i < NN; i++) {
     const X = x0[i], Y = y0[i], Z = z0[i];
     let tx = 0, ty = 0, tz = 0;
@@ -310,6 +338,7 @@ function simStep(dt) {
       const w = Math.exp(-((X - pull.gu) ** 2 + (Y - pull.gv) ** 2) / (2 * 0.12));
       etx += pull.Fx * w * 0.75; ety += pull.Fy * w * 0.75; etz -= Z * 0.22 * w * Math.min(1, pf / L);
     }
+    if (S2) { smStretchAt(S2, X, Y, Z); etx += SR.x; ety += SR.y; etz += SR.z; }
     ex[i] += (etx - ex[i]) * eR; ey[i] += (ety - ey[i]) * eR; ez[i] += (etz - ez[i]) * eR;
     wx[i] -= ((mx[i] - omx) + (ex[i] - oex)) * beta;
     wy[i] -= ((my[i] - omy) + (ey[i] - oey)) * beta;
@@ -779,7 +808,7 @@ function updateAudio(dt, maxDent) {
 function updateAudio0(dt, maxDent) {
   const rate = Math.abs(deficit - lastDef) / Math.max(dt, 1e-3); lastDef = deficit;
   rateSm += (rate - rateSm) * Math.min(1, dt * 12);
-  const pf = Math.hypot(pull.Fx, pull.Fy), pr = Math.abs(pf - lastPull) / Math.max(dt, 1e-3); lastPull = pf;
+  const pf = Math.hypot(pull.Fx, pull.Fy) + Math.hypot(pull2.Fx, pull2.Fy), pr = Math.abs(pf - lastPull) / Math.max(dt, 1e-3); lastPull = pf;
   pullRateSm += (pr - pullRateSm) * Math.min(1, dt * 10);
   const jv = Math.hypot(sway.vx, sway.vy) + Math.abs(bounce.v) * 1.5;
   jigSm += (jv - jigSm) * Math.min(1, dt * 14);
@@ -807,7 +836,7 @@ const TOOLS = [
   { id: 'poke', label: 'Poke', verb: 'Poke', icon: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/><circle cx="12" cy="12" r="7" opacity=".45"/>' },
   { id: 'press', label: 'Press', verb: 'Press and hold', icon: '<path d="M12 3v10"/><path d="m8 9 4 4 4-4"/><path d="M4 19c3-2 13-2 16 0"/>' },
   { id: 'squeeze', label: 'Squeeze', verb: 'Hold and drag to squeeze', icon: '<path d="M2 12h6"/><path d="m5 9 3 3-3 3"/><path d="M22 12h-6"/><path d="m19 9-3 3 3 3"/>' },
-  { id: 'pull', label: 'Pull', verb: 'Drag to pull', icon: '<path d="M9 12H2"/><path d="m5 9-3 3 3 3"/><path d="M15 12h7"/><path d="m19 9 3 3-3 3"/>' },
+  { id: 'pull', label: 'Pull', verb: '' + (matchMedia('(pointer: coarse)').matches ? 'Spread two fingers to stretch' : 'Drag to pull') + '', icon: '<path d="M9 12H2"/><path d="m5 9-3 3 3 3"/><path d="M15 12h7"/><path d="m19 9 3 3-3 3"/>' },
   { id: 'smoosh', label: 'Smoosh', verb: 'Smoosh', icon: '<path d="M3 15c3-1.5 15-1.5 18 0"/><path d="M5 19c4 1.5 10 1.5 14 0"/><path d="M8 4v6M12 4v6M16 4v6"/>' },
 ];
 let tool = 'press', lastTouch = performance.now();
@@ -851,6 +880,9 @@ fxc.addEventListener('pointerdown', e => {
   e.preventDefault(); try { fxc.setPointerCapture(e.pointerId); } catch (er) {}
   const p = { x, y, x0: x, y0: y, mode: tool, i };
   pointers.set(e.pointerId, p);
+  if (pointers.size === 2 && tool === 'pull' && pull.on && [...pointers.values()].some(r => r.mode === 'pull')) {
+    pull2.on = true; pull2.gu = x0[i]; pull2.gv = y0[i]; pull2.Tx = pull2.Ty = 0; p.mode = 'pull2'; oneShot('poke'); buzz(10); return;
+  }
   if (pointers.size >= 2) {
     for (const [id, q] of pointers) { if (q.mode !== 'squeeze') endContact(id); q.mode = 'squeeze'; }
     pull.on = false; updateAxis(); oneShot('press'); return;
@@ -862,9 +894,9 @@ fxc.addEventListener('pointerdown', e => {
 fxc.addEventListener('pointermove', e => {
   const p = pointers.get(e.pointerId); if (!p) return;
   const [x, y] = local(e); p.x = x; p.y = y; lastTouch = performance.now();
-  if (p.mode === 'pull') {
+  if (p.mode === 'pull' || p.mode === 'pull2') {
     const [dx, dy] = flanDelta(x - p.x0, y - p.y0), L = 0.25 + recipe.soft * 0.05, m = Math.hypot(dx, dy);
-    const k = m > 1e-6 ? L * Math.tanh(m / L) / m : 0; pull.Tx = dx * k; pull.Ty = dy * k;
+    const k = m > 1e-6 ? L * Math.tanh(m / L) / m : 0, G = p.mode === 'pull2' ? pull2 : pull; G.Tx = dx * k; G.Ty = dy * k;
   } else if (p.mode === 'squeeze') updateAxis();
   else if (p.mode === 'squeeze1') { const [dx, dy] = flanDelta(x - p.x0, y - p.y0), l = Math.hypot(dx, dy); if (l > 0.04) { squeeze.ax = dx / l; squeeze.ay = dy / l; } }
   else {
@@ -880,6 +912,12 @@ function updateAxis() {
 function release(e) {
   const p = pointers.get(e.pointerId); if (!p) return;
   pointers.delete(e.pointerId); lastTouch = performance.now();
+  if ((p.mode === 'pull' || p.mode === 'pull2') && pull2.on) {
+    pull.on = false; pull2.on = false;
+    for (const r of pointers.values()) if (r.mode === 'pull' || r.mode === 'pull2') r.mode = 'idle';
+    oneShot(SMV.hit.snap ? 'snap' : 'release'); buzz([8, 30, 6]); return;
+  }
+  if (p.mode === 'pull2') return;
   if (p.mode === 'pull') { pull.on = false; oneShot('release'); buzz([6, 40, 5]); }
   else if (p.mode === 'squeeze1' || p.mode === 'squeeze') { for (const q of pointers.values()) if (q.mode === 'squeeze') q.mode = 'idle'; oneShot('release'); kick(-0.6, 0, 0); buzz([6, 40, 5]); }
   else endContact(e.pointerId);
