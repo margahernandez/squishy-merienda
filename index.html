@@ -191,13 +191,16 @@ kbd{display:inline-grid;place-items:center;min-width:28px;height:26px;padding:0 
 .logo{animation:rise .7s cubic-bezier(.2,.8,.2,1) both}
 @keyframes rise{from{opacity:0;transform:translateY(14px) scale(.97)}}
 
+/* phones: the action bar spans the width as five equal, thumb-sized targets (52px tall, about 65px wide), icon above label */
 @media (max-width:560px){
-  .tools button{padding:0 10px;font-size:13px;height:38px}
+  .stack{gap:12px}
+  .tools{align-self:stretch;gap:4px;padding:5px;border-radius:24px}
+  .tools button{flex:1 1 0;flex-direction:column;gap:4px;height:auto;min-height:52px;padding:7px 2px 6px;border-radius:19px;font-size:12px;line-height:1.1;
+    touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;transition:background .15s ease,color .15s ease,transform .1s ease}
+  .tools button svg{width:20px;height:20px}
+  .tools button:active{transform:scale(.95)}
 }
-@media (max-width:400px){
-  .tools button svg{display:none}
-  .tools button{padding:0 9px}
-}
+@media (max-width:340px){.tools button{font-size:11px}}
 @media (prefers-reduced-motion: reduce){
   .drawer,.scrim,.loader,.title,.plate-name,.menu button{transition:none!important}
   .bilao{animation:pulse 1.6s ease-in-out infinite}
