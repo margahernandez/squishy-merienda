@@ -1589,6 +1589,8 @@ void main(){
   return { el, POSES, lerpPose, render, hotspot, size };
 }
 (function handCursor() {
+  // the hand is a mouse cursor: phones and tablets (touch only, no hover) never get one
+  if (matchMedia('(hover: none) and (pointer: coarse)').matches && !matchMedia('(any-hover: hover)').matches) return;
   const st = document.createElement('style');
   st.textContent = '.hand{position:absolute;left:0;top:0;pointer-events:none;z-index:3;opacity:0;transition:opacity .14s ease;will-change:transform}.hand.on{opacity:1}.hand svg{display:block;overflow:visible}#fx.hand-cursor,#fx.hand-cursor:active{cursor:none}@media (prefers-reduced-motion: reduce){.hand{transition:none}}';
   document.head.appendChild(st);
@@ -1605,7 +1607,7 @@ void main(){
   window.addEventListener('blur', () => { down = false; });
   function frame(now) {
     const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
-    const show = (over && !touch) || (touch && (down || now < hideAt));
+    const show = over && !touch;   // never on a touch, even on touchscreen laptops
     if (show !== visible) { visible = show; H.el.classList.toggle('on', show); }
     if (visible || t > 0.001) {
       t += ((down ? 1 : 0) - t) * (reduced ? 1 : Math.min(1, dt * (down ? 22 : 12)));
