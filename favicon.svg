@@ -1,24 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <radialGradient id="bun" cx="0.4" cy="0.34" r="0.75">
-      <stop offset="0" stop-color="#FFFEF9"/>
-      <stop offset="0.55" stop-color="#F6EFE1"/>
-      <stop offset="1" stop-color="#D9CBB2"/>
+    <linearGradient id="side" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#9C5E1B"/>
+      <stop offset="0.3" stop-color="#E2A848"/>
+      <stop offset="0.55" stop-color="#F0BE5E"/>
+      <stop offset="1" stop-color="#A7651E"/>
+    </linearGradient>
+    <linearGradient id="shade" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#3A1A05" stop-opacity="0.35"/>
+    </linearGradient>
+    <radialGradient id="top" cx="0.42" cy="0.38" r="0.75">
+      <stop offset="0" stop-color="#EE9A3C"/>
+      <stop offset="0.6" stop-color="#D0702A"/>
+      <stop offset="1" stop-color="#A9501A"/>
     </radialGradient>
-    <radialGradient id="knot" cx="0.38" cy="0.32" r="0.7">
-      <stop offset="0" stop-color="#FF6A5C"/>
-      <stop offset="1" stop-color="#B3121C"/>
+    <radialGradient id="pool" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#6E2E08"/>
+      <stop offset="1" stop-color="#8E4512"/>
     </radialGradient>
   </defs>
   <!-- jeepney signboard: black plate with a stainless keyline -->
   <rect width="64" height="64" rx="14" fill="#0C0B0A"/>
   <rect x="1.75" y="1.75" width="60.5" height="60.5" rx="12.5" fill="none" stroke="#737A81" stroke-width="1.5"/>
-  <!-- siopao, seen from above, a little squished -->
-  <ellipse cx="32" cy="36.5" rx="22.5" ry="18.5" fill="#000" opacity="0.45"/>
-  <ellipse cx="32" cy="33" rx="23" ry="20.5" fill="url(#bun)"/>
-  <g fill="none" stroke="#C2B398" stroke-width="1.7" stroke-linecap="round" opacity="0.9">
-    <path d="M36.60,33.00 L38.60,33.95 L40.33,35.46 L41.65,37.47 L42.43,39.89 L42.55,42.62 L41.95,45.52"/><path d="M35.25,35.93 L35.92,37.87 L35.96,40.04 L35.31,42.30 L33.96,44.51 L31.91,46.51 L29.20,48.18"/><path d="M32.00,37.14 L30.95,38.94 L29.27,40.50 L27.04,41.68 L24.35,42.38 L21.32,42.50 L18.09,41.95"/><path d="M28.75,35.93 L26.59,36.53 L24.18,36.56 L21.67,35.98 L19.22,34.76 L16.98,32.92 L15.13,30.48"/><path d="M27.40,33.00 L25.40,32.05 L23.67,30.54 L22.35,28.53 L21.57,26.11 L21.45,23.38 L22.05,20.48"/><path d="M28.75,30.07 L28.08,28.13 L28.04,25.96 L28.69,23.70 L30.04,21.49 L32.09,19.49 L34.80,17.82"/><path d="M32.00,28.86 L33.05,27.06 L34.73,25.50 L36.96,24.32 L39.65,23.62 L42.68,23.50 L45.91,24.05"/><path d="M35.25,30.07 L37.41,29.47 L39.82,29.44 L42.33,30.02 L44.78,31.24 L47.02,33.08 L48.87,35.52"/>
+  <!-- caramel pooled on the plate -->
+  <ellipse cx="32" cy="42.5" rx="26" ry="10.5" fill="url(#pool)"/>
+  <!-- the custard's side wall, with caramel running down it -->
+  <path d="M12.5,27 L9.5,40 A22.5,9.6 0 0 0 54.5,40 L51.5,27 Z" fill="url(#side)"/>
+  <path d="M12.5,27 L9.5,40 A22.5,9.6 0 0 0 54.5,40 L51.5,27 Z" fill="url(#shade)"/>
+  <g fill="#B5621F" opacity="0.75">
+    <path d="M20,32 q1.2,5 0.4,10 l2.4,0.6 q0.4,-5 -0.6,-10.3 z"/>
+    <path d="M37,33.5 q1,4.4 0.2,9.3 l2.2,0.2 q0.5,-4.8 -0.5,-9.6 z"/>
+    <path d="M46.5,31.5 q0.8,3.4 0.1,7.4 l1.9,-0.3 q0.3,-3.6 -0.5,-7.3 z"/>
   </g>
-  <circle cx="32" cy="33" r="3.6" fill="url(#knot)"/>
-  <circle cx="31" cy="31.9" r="1.1" fill="#FFD3CC" opacity="0.85"/>
+  <!-- glossy caramel top -->
+  <ellipse cx="32" cy="27" rx="19.5" ry="8.6" fill="url(#top)"/>
+  <ellipse cx="32" cy="27" rx="19.5" ry="8.6" fill="none" stroke="#F6B866" stroke-width="0.9" opacity="0.7"/>
+  <path d="M18.5,26.5 C20,22.6 27,20.8 33,21.1" fill="none" stroke="#FFE7C2" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
+  <ellipse cx="40" cy="24.2" rx="2.6" ry="0.9" fill="#FFE2B8" opacity="0.6"/>
 </svg>
